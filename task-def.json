@@ -4,7 +4,7 @@
     "containerDefinitions": [
         {
             "name": "notion-playbook-personal-app",
-            "image": "httpd:2.4",
+            "image": "${{ secrets.AWS_ACCOUNT_NUMBER}}.dkr.ecr.us-east-1.amazonaws.com/plot-twisters-playbook-notion-backend",
             "portMappings": [
                 {
                     "containerPort": 80,
