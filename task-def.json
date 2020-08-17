@@ -4,6 +4,7 @@
     "containerDefinitions": [
         {
             "name": "notion-playbook-personal-app",
+            "executionRoleArn": "arn:aws:iam::${{ secrets.AWS_ACCOUNT_NUMBER}}:role/ecsTaskExecutionRole",
             "image": "${{ secrets.AWS_ACCOUNT_NUMBER}}.dkr.ecr.us-east-1.amazonaws.com/plot-twisters-playbook-notion-backend",
             "portMappings": [
                 {
@@ -25,7 +26,6 @@
     "requiresCompatibilities": [
         "FARGATE"
     ],
-    "cpu": "256", 
+    "cpu": "256",
     "memory": "512"
 }
-
