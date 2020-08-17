@@ -76,6 +76,6 @@ jobs:
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
       with:
         task-definition: ${{ steps.task-def.outputs.task-definition }}
-        service: notion-playbook-cluster
-        cluster: default
+        service: notion-playbook-service
+        cluster: notion-playbook-cluster
         wait-for-service-stability: true
