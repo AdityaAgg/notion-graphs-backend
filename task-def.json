@@ -1,32 +1,32 @@
 {
-    "family": "notion-playbook-fargate",
-    "executionRoleArn": "arn:aws:iam::103292234280:role/ecsTaskExecutionRole",
-    "networkMode": "awsvpc",
-    "containerDefinitions": [
+  "family": "notion-playbook-fargate",
+  "executionRoleArn": "arn:aws:iam::103292234280:role/ecsTaskExecutionRole",
+  "networkMode": "awsvpc",
+  "containerDefinitions": [
+    {
+      "name": "notion-playbook-personal-app",
+      "image": "httpd:2.4",
+      "portMappings": [
         {
-            "name": "notion-playbook-personal-app",
-            "image": "httpd:2.4",
-            "portMappings": [
-                {
-                    "containerPort": 5000,
-                    "hostPort": 5000,
-                    "protocol": "tcp"
-                }
-            ],
-            "essential": true,
-            "logConfiguration": {
-            "logDriver": "awslogs",
-            "options": {
-              "awslogs-group": "/ecs/dcdojo",
-              "awslogs-region": "us-east-1",
-              "awslogs-stream-prefix": "ecs"
-            }
-          }
+          "containerPort": 5000,
+          "hostPort": 5000,
+          "protocol": "tcp"
         }
-    ],
-    "requiresCompatibilities": [
-        "FARGATE"
-    ],
-    "cpu": "256",
-    "memory": "512"
+      ],
+      "essential": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/notion-playbook-fargate",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      }
+    }
+  ],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "cpu": "256",
+  "memory": "512"
 }
