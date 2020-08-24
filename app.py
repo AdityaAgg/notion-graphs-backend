@@ -51,7 +51,10 @@ def get_all_events_route():
     cv = notion_client.get_collection_view(notion_url)
     return json.dumps(get_all_events(cv, None), default=set_default)
 
+@app.route('/')
+def healthy_route():
+    return ""
+
 #start app
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0')
-
