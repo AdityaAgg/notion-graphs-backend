@@ -3,7 +3,7 @@ import json
 from create_graph import *
 from flask import Flask
 from flask import request
-
+from flask_cors import CORS
 notion_client = None
 app = Flask(__name__)
 
@@ -42,6 +42,7 @@ def get_all_events(cv, timestamp):
 
 #routes
 @app.route('/get_all_events')
+@cross_origin()
 def get_all_events_route():
     global notion_client
     if notion_client == None:
