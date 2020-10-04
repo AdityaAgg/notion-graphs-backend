@@ -3,7 +3,7 @@ import json
 from create_graph import *
 from flask import Flask
 from flask import request
-from flask_cors import CORS
+from flask_cors import CORS, cross_origin
 notion_client = None
 app = Flask(__name__)
 
