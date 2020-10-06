@@ -47,7 +47,8 @@ def get_all_events_route():
     global notion_client
     if notion_client == None:
         notion_cookie = request.cookies.get("token_v2")
-        print(notion_cookie)
+        print("length is...")
+        print(len(notion_cookie))
         notion_client = NotionClient(token_v2=notion_cookie)
     notion_url = "https://www.notion.so/5813e381992d4ae9bdbca0b84593d18f?v=8cea9a8178b94159bdbe9a1512432047"
     cv = notion_client.get_collection_view(notion_url)
