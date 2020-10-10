@@ -44,7 +44,6 @@ def get_all_events(cv, timestamp):
 @app.route('/get_all_events')
 @cross_origin()
 def get_all_events_route():
-    print(request.args.get('url'))
     global notion_client
     if notion_client == None:
         notion_cookie = request.cookies.get("token_v2")
