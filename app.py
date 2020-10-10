@@ -28,7 +28,7 @@ def get_all_events(cv, timestamp):
         event["size"] = notion_event.get_property("Points")
         if event["size"] == None:
             event["size"] = 0.5
-        notion_value = notion_event.get_property("quality_of_execution_5_highest")
+        notion_value = None
         event["value"] = 3 if (notion_value == None) else ord(notion_value) - ord('0')
 
         notion_domains = notion_event.get_property("Goals")
@@ -47,10 +47,8 @@ def get_all_events_route():
     global notion_client
     if notion_client == None:
         notion_cookie = request.cookies.get("token_v2")
-        print("length is...")
-        print(len(notion_cookie))
         notion_client = NotionClient(token_v2=notion_cookie)
-    notion_url = "https://www.notion.so/5813e381992d4ae9bdbca0b84593d18f?v=8cea9a8178b94159bdbe9a1512432047"
+    notion_url = request.args.get('url')
     cv = notion_client.get_collection_view(notion_url)
     return json.dumps(get_all_events(cv, None), default=set_default)
 
