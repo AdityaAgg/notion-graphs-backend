@@ -54,7 +54,7 @@ jobs:
       id: build-image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        ECR_REPOSITORY: plot-twisters-playbook-notion-backend
+        ECR_REPOSITORY: notion-graphs-backend
         IMAGE_TAG: ${{ github.sha }}
       run: |
         # Build a docker container and
@@ -69,13 +69,13 @@ jobs:
       uses: aws-actions/amazon-ecs-render-task-definition@v1
       with:
         task-definition: task-def.json
-        container-name: notion-playbook-personal-app
+        container-name: notion-graphs-app
         image: ${{ steps.build-image.outputs.image }}
 
     - name: Deploy Amazon ECS task definition
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
       with:
         task-definition: ${{ steps.task-def.outputs.task-definition }}
-        service: notion-playbook-backend
-        cluster: notion-playbook-cluster
+        service: notion-graphs-serve
+        cluster: notion-graphs-cluster
         wait-for-service-stability: true

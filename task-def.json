@@ -1,10 +1,10 @@
 {
-  "family": "notion-playbook-fargate",
+  "family": "notion-graphs-fargate",
   "executionRoleArn": "arn:aws:iam::103292234280:role/ecsTaskExecutionRole",
   "networkMode": "awsvpc",
   "containerDefinitions": [
     {
-      "name": "notion-playbook-personal-app",
+      "name": "notion-graphs-app",
       "image": "httpd:2.4",
       "portMappings": [
         {
@@ -17,7 +17,7 @@
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
-          "awslogs-group": "/ecs/notion-playbook-fargate",
+          "awslogs-group": "/ecs/notion-graphs-fargate",
           "awslogs-region": "us-east-1",
           "awslogs-stream-prefix": "ecs"
         }
