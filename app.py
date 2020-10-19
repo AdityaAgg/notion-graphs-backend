@@ -15,7 +15,7 @@ def set_default(obj):
     raise TypeError
 
 
-def get_all_events(cv, y):
+def get_all_events(cv, y_property):
     notion_events = filter(lambda x: x.Status == 'Done 🙌', cv.collection.get_rows())
     events = []
     event_hiearchy = {}
@@ -29,7 +29,7 @@ def get_all_events(cv, y):
         if event["size"] == None:
             event["size"] = 0.5
         notion_value = notion_event.get_property(y_property)
-        event["value"] = 3 if (notion_value == None) else ord(notion_value) - ord('0')
+        event["value"] = notion_value
 
         notion_domains = notion_event.get_property("Goals")
         new_domains = set([notion_domain.title for notion_domain in notion_domains])
@@ -49,7 +49,7 @@ def get_all_events_route():
         notion_cookie = request.cookies.get("token_v2")
         notion_client = NotionClient(token_v2=notion_cookie)
     notion_url = request.args.get('url')
-    y_property = notion.args.get('y')
+    y_property = request.args.get('y')
     cv = notion_client.get_collection_view(notion_url)
     return json.dumps(get_all_events(cv, y_property), default=set_default)
 
