@@ -4,7 +4,6 @@ from flask import Flask, jsonify
 from flask import request
 from exceptions import *
 from flask_cors import cross_origin
-notion_client = None
 app = Flask(__name__)
 
 
@@ -95,7 +94,7 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
 @app.route('/line_graph')
 @cross_origin()
 def get_all_events_route():
-    global notion_client
+    notion_client = None
     notion_cookie = request.cookies.get("token_v2")
     if notion_cookie is not None:
         notion_client = NotionClient(token_v2=notion_cookie)
