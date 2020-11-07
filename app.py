@@ -128,14 +128,14 @@ def get_all_events_route():
 
 
 @app.errorhandler(InvalidUsage)
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def handle_invalid_usage(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
     return response
 
 
-@app.route('/')
+@app.route('/')   
 def healthy_route():
     return "hello! try /line_graph to start using :)"
 
