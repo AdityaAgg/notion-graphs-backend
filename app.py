@@ -96,9 +96,10 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
 @cross_origin()
 def get_all_events_route():
     global notion_client
-    if notion_client is None:
-        notion_cookie = request.cookies.get("token_v2")
+    notion_cookie = request.cookies.get("token_v2")
+    if notion_cookie is not None:
         notion_client = NotionClient(token_v2=notion_cookie)
+    else:
         raise InvalidUsage("will not work without notion cookie")
 
     # required properties
@@ -128,6 +129,7 @@ def get_all_events_route():
 
 
 @app.errorhandler(InvalidUsage)
+@cross_origin()
 def handle_invalid_usage(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
