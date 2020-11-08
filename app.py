@@ -92,7 +92,7 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
 # routes
 
 @app.route('/line_graph')
-@cross_origin(supports_credentials=True)
+@cross_origin(supports_credentials=True, origins=["adityaagg.github.io"])
 def get_all_events_route():
     notion_client = None
     notion_cookie = request.cookies.get("token_v2")
