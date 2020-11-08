@@ -92,7 +92,7 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
 # routes
 
 @app.route('/line_graph')
-@cross_origin()
+@cross_origin(supports_credentials=True)
 def get_all_events_route():
     notion_client = None
     notion_cookie = request.cookies.get("token_v2")
@@ -135,7 +135,7 @@ def handle_invalid_usage(error):
     return response
 
 
-@app.route('/')   
+@app.route('/')
 def healthy_route():
     return "hello! try /line_graph to start using :)"
 
