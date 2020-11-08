@@ -3,8 +3,10 @@ import json
 from flask import Flask, jsonify
 from flask import request
 from exceptions import *
-from flask_cors import cross_origin
+from flask_cors import CORS
 app = Flask(__name__)
+CORS(app, supports_credentials=True, origins=["https://adityaagg.github.io","localhost"],
+     allow_headers="Accept,Cache,Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token")
 
 
 # helpers
@@ -92,7 +94,6 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
 # routes
 
 @app.route('/line_graph')
-@cross_origin(supports_credentials=True, origins=["https://adityaagg.github.io"], allow_headers="Accept,Cache,Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token")
 def get_all_events_route():
     notion_client = None
     notion_cookie = request.cookies.get("token_v2")
@@ -128,7 +129,6 @@ def get_all_events_route():
 
 
 @app.errorhandler(InvalidUsage)
-@cross_origin(supports_credentials=True, origins=["https://adityaagg.github.io"], allow_headers="Accept,Cache,Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token")
 def handle_invalid_usage(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
