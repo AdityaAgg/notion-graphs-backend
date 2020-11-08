@@ -92,7 +92,7 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
 # routes
 
 @app.route('/line_graph')
-@cross_origin(supports_credentials=True, origins=["adityaagg.github.io"])
+@cross_origin(supports_credentials=True, origins=["https://adityaagg.github.io"])
 def get_all_events_route():
     notion_client = None
     notion_cookie = request.cookies.get("token_v2")
@@ -128,7 +128,7 @@ def get_all_events_route():
 
 
 @app.errorhandler(InvalidUsage)
-@cross_origin(supports_credentials=True)
+@cross_origin(supports_credentials=True, origins=["https://adityaagg.github.io"])
 def handle_invalid_usage(error):
     response = jsonify(error.to_dict())
     response.status_code = error.status_code
