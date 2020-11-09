@@ -5,8 +5,8 @@ from flask import request
 from exceptions import *
 from flask_cors import CORS
 app = Flask(__name__)
-CORS(app, supports_credentials=True, origins=["https://adityaagg.github.io","localhost"],
-     allow_headers="Accept,Cache,Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token")
+CORS(app, supports_credentials=True, origins=["https://adityaagg.github.io","http://localhost:3000"],
+     allow_headers=["Accept","Cache","Content-Type","X-Amz-Date","Authorization","X-Api-Key","X-Amz-Security-Token"])
 
 
 # helpers
@@ -57,7 +57,7 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
             notion_data_points[0], x_property, y_property, size_property, title_property, series_property)
 
     data_points = []
-    all_series = set()
+    all_series = {}
 
     # empty defaults
     size = 1
@@ -71,11 +71,16 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
             title_property) if set_title else title
 
         if set_series:
+            series = []
             notion_series = notion_data_point.get_property(series_property)
-            new_series = set(
-                [notion_domain.title for notion_domain in notion_series])
-            all_series = all_series.union(new_series)
-            series = list(new_series)
+            for notion_domain in notion_series:
+                series.append(notion_domain.title)
+                if(notion_data_point.get_property(x_property) and notion_data_point.get_property(y_property)
+                   and (not set_size or notion_data_point.get_property(size_property))):
+                    if notion_domain.title in all_series:
+                        all_series[notion_domain.title].append(index)
+                    else:
+                        all_series[notion_domain.title] = [index]
 
         data_point = {
             "id": index,
