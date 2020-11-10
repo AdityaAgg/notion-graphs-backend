@@ -97,7 +97,7 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
 
         data_points.append(data_point)
 
-    return {"data_points": data_points, "series": all_series, "isXTime": is_x_time}
+    return {"data_points": data_points, "series": all_series, "is_x_time": is_x_time}
 
 
 # routes
