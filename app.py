@@ -4,6 +4,8 @@ from flask import Flask, jsonify
 from flask import request
 from exceptions import *
 from flask_cors import CORS
+import datetime
+
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=["https://adityaagg.github.io","http://localhost:3000"],
      allow_headers=["Accept","Cache","Content-Type","X-Amz-Date","Authorization","X-Api-Key","X-Amz-Security-Token"])
@@ -19,41 +21,42 @@ def set_default(obj):
 
 def schema_validation(notion_data_point, x_property, y_property, size_property, title_property, series_property):
     set_size = set_title = set_series = True
+    is_x_time = False
+    properties = set([prop["name"] for prop in notion_data_point.schema])
     try:
-        notion_data_point.get_property(x_property)
+        if isinstance(notion_data_point.get_property(x_property), datetime.date):
+            is_x_time = True
+        if x_property not in properties:
+            raise InvalidUsage("x property uses rollup and formula which not supported")
     except (AttributeError, TypeError):
         raise InvalidUsage("x property does not exist in notion table")
 
     try:
         notion_data_point.get_property(y_property)
+        if y_property not in properties:
+            raise InvalidUsage("y property uses rollup and formula which not supported")
     except (AttributeError, TypeError):
         raise InvalidUsage("y property does not exist in notion table")
 
-    try:
-        notion_data_point.get_property(size_property)
-    except (AttributeError, TypeError):
+    if size_property not in properties:
         set_size = False
 
-    try:
-        notion_data_point.get_property(title_property)
-    except (AttributeError, TypeError):
+    if title_property not in properties:
         set_title = False
 
-    try:
-        notion_data_point.get_property(series_property)
-    except (AttributeError, TypeError):
+    if series_property not in properties:
         set_series = False
 
-    return set_size, set_title, set_series
+    return set_size, set_title, set_series, is_x_time
 
 
 def get_data_points(cv, x_property, y_property, size_property, title_property, series_property):
     notion_data_points = cv.collection.get_rows()
 
     # schema validation
-    set_size = set_title = set_series = False
+    set_size = set_title = set_series = is_x_time = False
     if len(notion_data_points) > 0:
-        set_size, set_title, set_series = schema_validation(
+        set_size, set_title, set_series, is_x_time = schema_validation(
             notion_data_points[0], x_property, y_property, size_property, title_property, series_property)
 
     data_points = []
@@ -61,15 +64,13 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
 
     # empty defaults
     size = 1
-    title = ''
     series = []
 
     for index, notion_data_point in enumerate(notion_data_points):
         size = notion_data_point.get_property(
             size_property) if set_size else size
         title = notion_data_point.get_property(
-            title_property) if set_title else title
-
+            title_property) if set_title else notion_data_point.title
         if set_series:
             series = []
             notion_series = notion_data_point.get_property(series_property)
@@ -82,9 +83,12 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
                     else:
                         all_series[notion_domain.title] = [index]
 
+        x_value = notion_data_point.get_property(x_property)
+        if is_x_time:
+            x_value = x_value.timestamp()
         data_point = {
             "id": index,
-            "x": notion_data_point.get_property(x_property),
+            "x": x_value,
             "y": notion_data_point.get_property(y_property),
             "size": size,
             "title": title,
@@ -93,7 +97,7 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
 
         data_points.append(data_point)
 
-    return {"data_points": data_points, "series": all_series}
+    return {"data_points": data_points, "series": all_series, "isXTime": is_x_time}
 
 
 # routes
