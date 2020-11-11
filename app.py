@@ -60,13 +60,13 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
             notion_data_points[0], x_property, y_property, size_property, title_property, series_property)
 
     data_points = []
+    invalid_data_points = []
     all_series = {}
 
     # empty defaults
     size = 1
     series = []
-
-    for index, notion_data_point in enumerate(notion_data_points):
+    for notion_data_point in notion_data_points:
         size = notion_data_point.get_property(
             size_property) if set_size else size
         title = notion_data_point.get_property(
@@ -76,28 +76,34 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
             notion_series = notion_data_point.get_property(series_property)
             for notion_domain in notion_series:
                 series.append(notion_domain.title)
-                if(notion_data_point.get_property(x_property) and notion_data_point.get_property(y_property)
-                   and (not set_size or notion_data_point.get_property(size_property))):
-                    if notion_domain.title in all_series:
-                        all_series[notion_domain.title].append(index)
-                    else:
-                        all_series[notion_domain.title] = [index]
 
         x_value = notion_data_point.get_property(x_property)
         if is_x_time:
             x_value = x_value.timestamp()
         data_point = {
-            "id": index,
             "x": x_value,
             "y": notion_data_point.get_property(y_property),
             "size": size,
             "title": title,
             "series": series
         }
+        if not x_value or not notion_data_point.get_property(y_property) or (set_size and not notion_data_point.get_property(size_property)):
+            invalid_data_points.append(data_point)
+        else:
+            data_points.append(data_point)
 
-        data_points.append(data_point)
+    data_points.sort(key=lambda data_pt: data_pt["x"])
 
-    return {"data_points": data_points, "series": all_series, "is_x_time": is_x_time}
+    for index, data_point in enumerate(data_points):
+        data_point["index"] = index
+        if set_series:
+            for series_title in data_point["series"]:
+                if series_title in all_series:
+                    all_series[series_title].append(index)
+                else:
+                    all_series[series_title] = [index]
+
+    return {"data_points": data_points, "series": all_series, "is_x_time": is_x_time, "invalid_data_points": invalid_data_points}
 
 
 # routes
