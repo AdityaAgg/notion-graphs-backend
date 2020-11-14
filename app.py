@@ -7,7 +7,7 @@ from flask_cors import CORS
 import datetime
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, origins=["https://adityaagg.github.io","http://localhost:3000"],
+CORS(app, supports_credentials=True, origins=["https://master.dq0zmp5wb422k.amplifyapp.com","http://localhost:3000"],
      allow_headers=["Accept","Cache","Content-Type","X-Amz-Date","Authorization","X-Api-Key","X-Amz-Security-Token"])
 
 
