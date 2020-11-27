@@ -79,7 +79,7 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
 
         x_value = notion_data_point.get_property(x_property)
         if is_x_time:
-            x_value = x_value.timestamp()
+            x_value = x_value.timestamp() * 1000
         data_point = {
             "x": x_value,
             "y": notion_data_point.get_property(y_property),
