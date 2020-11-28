@@ -27,14 +27,17 @@ def schema_validation(notion_data_point, x_property, y_property, size_property, 
         if isinstance(notion_data_point.get_property(x_property), datetime.date):
             is_x_time = True
         if x_property not in properties:
-            raise InvalidUsage("x property uses rollup and formula which not supported")
+            raise InvalidUsage("x property uses rollup or formula which not supported")
     except (AttributeError, TypeError):
         raise InvalidUsage("x property does not exist in notion table")
 
     try:
         notion_data_point.get_property(y_property)
+        is_y_time = isinstance(notion_data_point.get_property(y_property), datetime.date)
+        if is_y_time:
+            raise InvalidUsage("y property uses time which is not supported. Time is supported only for x axis.")
         if y_property not in properties:
-            raise InvalidUsage("y property uses rollup and formula which not supported")
+            raise InvalidUsage("y property uses rollup or formula which not supported")
     except (AttributeError, TypeError):
         raise InvalidUsage("y property does not exist in notion table")
 
