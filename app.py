@@ -140,7 +140,11 @@ def get_all_events_route():
     title_property = title_property if title_property is not None else 'title'
 
     # generate data
-    cv = notion_client.get_collection_view(notion_url)
+    try:
+        cv = notion_client.get_collection_view(notion_url)
+    except:
+        raise InvalidUsage("Notion Graphs seems to have trouble finding your notion page. Are you sure it is the right one?")
+
     return json.dumps(get_data_points(cv, x_property, y_property, size_property,
                                       title_property, series_property),
                       default=set_default)
