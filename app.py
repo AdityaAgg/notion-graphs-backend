@@ -1,6 +1,6 @@
 from notion.client import NotionClient
 import json
-from flask import Flask, jsonify
+from flask import Flask, jsonify, make_response
 from flask import request
 from exceptions import *
 from flask_cors import CORS
@@ -116,7 +116,10 @@ def get_all_events_route():
     notion_client = None
     notion_cookie = request.cookies.get("token_v2")
     if notion_cookie is not None:
-        notion_client = NotionClient(token_v2=notion_cookie)
+        try:
+            notion_client = NotionClient(token_v2=notion_cookie)
+        except:
+            raise InvalidUsage("are you sure your notion token is correct?")
     else:
         raise InvalidUsage("will not work without notion cookie")
 
@@ -156,6 +159,12 @@ def handle_invalid_usage(error):
     response.status_code = error.status_code
     return response
 
+@app.route('/logout')
+def logout():
+    res = make_response(jsonify({"message": "Cookie Removed"}))
+    res.set_cookie('cookies_set', '', max_age=0)
+    res.set_cookie('token_v2', '', max_age=0)
+    return res
 
 @app.route('/')
 def healthy_route():
