@@ -175,9 +175,9 @@ def logout():
 @app.route('/set_http_only')
 def set_http_only():
     res = make_response(jsonify({"message": "Cookie Secured"}))
-    if request.host != "localhost":
-        notion_cookie = request.cookies.get("token_v2")
-        res.set_cookie("token_v2", value=notion_cookie, expires=datetime.datetime(2052, 7, 17),
+    if request.host != 'localhost':
+        notion_cookie = request.cookies.get('token_v2')
+        res.set_cookie('token_v2', value=notion_cookie, expires=datetime.datetime(2052, 7, 17),
                        domain='.notion-graphs.com',
                        secure=True, httponly=True)
     return res
