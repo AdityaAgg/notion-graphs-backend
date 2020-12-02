@@ -167,8 +167,13 @@ def handle_invalid_usage(error):
 @app.route('/logout')
 def logout():
     res = make_response(jsonify({"message": "Cookie Removed"}))
-    res.set_cookie('cookies_set', '', max_age=0)
-    res.set_cookie('token_v2', '', max_age=0)
+    is_local = request.host != 'localhost'
+    if is_local:
+        res.set_cookie('cookies_set', '', max_age=0, domain='notion-graphs.com')
+        res.set_cookie('token_v2', '', max_age=0, domain='.notion-graphs.com')
+    else:
+        res.set_cookie('cookies_set', '', max_age=0)
+        res.set_cookie('token_v2', '', max_age=0)
     return res
 
 
