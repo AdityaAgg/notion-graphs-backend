@@ -7,8 +7,9 @@ from flask_cors import CORS
 import datetime
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, origins=["https://notion-graphs.com","http://localhost:3000"],
-     allow_headers=["Accept","Cache","Content-Type","X-Amz-Date","Authorization","X-Api-Key","X-Amz-Security-Token"])
+CORS(app, supports_credentials=True, origins=["https://notion-graphs.com", "http://localhost:3000"],
+     allow_headers=["Accept", "Cache", "Content-Type", "X-Amz-Date", "Authorization", "X-Api-Key",
+                    "X-Amz-Security-Token"])
 
 
 # helpers
@@ -90,7 +91,8 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
             "title": title,
             "series": series
         }
-        if not x_value or not notion_data_point.get_property(y_property) or (set_size and not notion_data_point.get_property(size_property)):
+        if not x_value or not notion_data_point.get_property(y_property) or (
+            set_size and not notion_data_point.get_property(size_property)):
             invalid_data_points.append(data_point)
         else:
             data_points.append(data_point)
@@ -106,7 +108,8 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
                 else:
                     all_series[series_title] = [index]
 
-    return {"data_points": data_points, "series": all_series, "is_x_time": is_x_time, "invalid_data_points": invalid_data_points}
+    return {"data_points": data_points, "series": all_series, "is_x_time": is_x_time,
+            "invalid_data_points": invalid_data_points}
 
 
 # routes
@@ -146,7 +149,8 @@ def get_all_events_route():
     try:
         cv = notion_client.get_collection_view(notion_url)
     except:
-        raise InvalidUsage("Notion Graphs seems to have trouble finding your notion page. Are you sure it is the right one?")
+        raise InvalidUsage(
+            "Notion Graphs seems to have trouble finding your notion page. Are you sure it is the right one?")
 
     return json.dumps(get_data_points(cv, x_property, y_property, size_property,
                                       title_property, series_property),
@@ -159,12 +163,25 @@ def handle_invalid_usage(error):
     response.status_code = error.status_code
     return response
 
+
 @app.route('/logout')
 def logout():
     res = make_response(jsonify({"message": "Cookie Removed"}))
     res.set_cookie('cookies_set', '', max_age=0)
     res.set_cookie('token_v2', '', max_age=0)
     return res
+
+
+@app.route('/set_http_only')
+def set_http_only():
+    res = make_response(jsonify({"message": "Cookie Secured"}))
+    if request.host != "localhost":
+        notion_cookie = request.cookies.get("token_v2")
+        res.set_cookie("token_v2", value=notion_cookie, expires=datetime.datetime(2052, 7, 17),
+                       domain='.notion-graphs.com',
+                       secure=True, httponly=True)
+    return res
+
 
 @app.route('/')
 def healthy_route():
