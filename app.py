@@ -170,6 +170,7 @@ def logout():
     is_local = request.host == 'localhost'
     if not is_local:
         res.set_cookie('cookies_set', '', max_age=0, domain='notion-graphs.com')
+        res.set_cookie('cookies_set', '', max_age=0, domain='.notion-graphs.com')
         res.set_cookie('token_v2', '', max_age=0, domain='.notion-graphs.com')
     else:
         res.set_cookie('cookies_set', '', max_age=0)
