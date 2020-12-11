@@ -5,12 +5,21 @@ from flask import request
 from exceptions import *
 from flask_cors import CORS
 import datetime
+from notion.collection import NotionDate
+import enum
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=["https://notion-graphs.com", "http://localhost:3000"],
      allow_headers=["Accept", "Cache", "Content-Type", "X-Amz-Date", "Authorization", "X-Api-Key",
                     "X-Amz-Security-Token"])
 
+
+
+class XAxisType(enum.Enum):
+    NOT_TIME = 1,
+    TIMESTAMP = 2,
+    DATETIME_DATE = 3,
+    DATE = 4
 
 # helpers
 
@@ -22,23 +31,36 @@ def set_default(obj):
 
 def schema_validation(notion_data_point, x_property, y_property, size_property, title_property, series_property):
     set_size = set_title = set_series = True
-    is_x_time = False
+    is_x_time = XAxisType.NOT_TIME
     properties = set([prop["name"] for prop in notion_data_point.schema])
     try:
         if isinstance(notion_data_point.get_property(x_property), datetime.date):
-            is_x_time = True
+            is_x_time = XAxisType.TIMESTAMP
+        elif isinstance(notion_data_point.get_property(x_property), NotionDate):
+            start_time = notion_data_point.get_property(x_property).start
+            if isinstance(start_time, datetime.datetime):
+                is_x_time = XAxisType.DATETIME_DATE
+            elif isinstance(start_time, datetime.date):
+                is_x_time = XAxisType.DATE
+            elif not start_time:
+                raise InvalidUsage("x property is a Date type that Notion Graphs does not support")
+
         if x_property not in properties:
-            raise InvalidUsage("x property uses rollup or formula which not supported")
+            raise InvalidUsage(
+                "x property uses rollup or formula which not supported")
     except (AttributeError, TypeError):
         raise InvalidUsage("x property does not exist in notion table")
 
     try:
         notion_data_point.get_property(y_property)
-        is_y_time = isinstance(notion_data_point.get_property(y_property), datetime.date)
+        is_y_time = isinstance(
+            notion_data_point.get_property(y_property), datetime.date)
         if is_y_time:
-            raise InvalidUsage("y property uses time which is not supported. Time is supported only for x axis.")
+            raise InvalidUsage(
+                "y property uses time which is not supported. Time is supported only for x axis.")
         if y_property not in properties:
-            raise InvalidUsage("y property uses rollup or formula which not supported")
+            raise InvalidUsage(
+                "y property uses rollup or formula which not supported")
     except (AttributeError, TypeError):
         raise InvalidUsage("y property does not exist in notion table")
 
@@ -58,7 +80,8 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
     notion_data_points = cv.collection.get_rows()
 
     # schema validation
-    set_size = set_title = set_series = is_x_time = False
+    set_size = set_title = set_series = False
+    is_x_time = XAxisType.NOT_TIME
     if len(notion_data_points) > 0:
         set_size, set_title, set_series, is_x_time = schema_validation(
             notion_data_points[0], x_property, y_property, size_property, title_property, series_property)
@@ -82,8 +105,14 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
                 series.append(notion_domain.title)
 
         x_value = notion_data_point.get_property(x_property)
-        if is_x_time:
+        if is_x_time == XAxisType.TIMESTAMP:
             x_value = x_value.timestamp() * 1000
+        elif is_x_time == XAxisType.DATETIME_DATE:
+            x_value = x_value.start.timestamp() * 1000
+        elif is_x_time == XAxisType.DATE:
+            x_value = datetime.datetime.combine(x_value.start,
+                                                datetime.datetime.min.time())
+
         data_point = {
             "x": x_value,
             "y": notion_data_point.get_property(y_property),
@@ -92,7 +121,7 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
             "series": series
         }
         if not x_value or not notion_data_point.get_property(y_property) or (
-            set_size and not notion_data_point.get_property(size_property)):
+                set_size and not notion_data_point.get_property(size_property)):
             invalid_data_points.append(data_point)
         else:
             data_points.append(data_point)
@@ -169,8 +198,10 @@ def logout():
     res = make_response(jsonify({"message": "Cookie Removed"}))
     is_local = request.host == 'localhost'
     if not is_local:
-        res.set_cookie('cookies_set', '', max_age=0, domain='notion-graphs.com')
-        res.set_cookie('cookies_set', '', max_age=0, domain='.notion-graphs.com')
+        res.set_cookie('cookies_set', '', max_age=0,
+                       domain='notion-graphs.com')
+        res.set_cookie('cookies_set', '', max_age=0,
+                       domain='.notion-graphs.com')
         res.set_cookie('token_v2', '', max_age=0, domain='.notion-graphs.com')
     else:
         res.set_cookie('cookies_set', '', max_age=0)
