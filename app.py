@@ -6,22 +6,16 @@ from exceptions import *
 from flask_cors import CORS
 import datetime
 from notion.collection import NotionDate
-import enum
+from notion_graphs_types import XAxisType
 
 app = Flask(__name__)
-CORS(app, supports_credentials=True, origins=["https://notion-graphs.com", "http://localhost:3000"],
+CORS(app, supports_credentials=True, origins=["https://notion-graphs.com", "http://localhost:3000", "http://localhost:5000"],
      allow_headers=["Accept", "Cache", "Content-Type", "X-Amz-Date", "Authorization", "X-Api-Key",
                     "X-Amz-Security-Token"])
 
 
-
-class XAxisType(enum.Enum):
-    NOT_TIME = 1,
-    TIMESTAMP = 2,
-    DATETIME_DATE = 3,
-    DATE = 4
-
 # helpers
+
 
 def set_default(obj):
     if isinstance(obj, set):
@@ -53,8 +47,9 @@ def schema_validation(notion_data_point, x_property, y_property, size_property, 
 
     try:
         notion_data_point.get_property(y_property)
-        is_y_time = isinstance(
-            notion_data_point.get_property(y_property), datetime.date)
+        is_y_time = (isinstance(
+            notion_data_point.get_property(y_property), datetime.date) or
+            isinstance(notion_data_point.get_property(y_property), NotionDate))
         if is_y_time:
             raise InvalidUsage(
                 "y property uses time which is not supported. Time is supported only for x axis.")
@@ -105,13 +100,28 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
                 series.append(notion_domain.title)
 
         x_value = notion_data_point.get_property(x_property)
+
+        # time handling
         if is_x_time == XAxisType.TIMESTAMP:
-            x_value = x_value.timestamp() * 1000
+            if x_value:
+                x_value = x_value.timestamp() * 1000
         elif is_x_time == XAxisType.DATETIME_DATE:
-            x_value = x_value.start.timestamp() * 1000
+            if x_value and x_value.start:
+                if x_value.timezone:  # there is a bug in timezone in notion-py parsing thus this has no effect
+                    x_value.start.replace(tzinfo=x_value.timezone).astimezone(tz=datetime.timezone.utc)
+                x_value = x_value.start.timestamp() * 1000
+            else:
+                x_value = None
         elif is_x_time == XAxisType.DATE:
-            x_value = datetime.datetime.combine(x_value.start,
-                                                datetime.datetime.min.time())
+            if x_value and x_value.start:
+                timezone = x_value.timezone
+                x_value = datetime.datetime.combine(x_value.start,
+                                                    datetime.datetime.min.time())
+                if timezone:  # there is a bug in timezone in notion-py parsing thus this has no effect
+                    x_value.replace(tzinfo=timezone).astimezone(tz=datetime.timezone.utc)
+                x_value = x_value.timestamp() * 1000
+            else:
+                x_value = None
 
         data_point = {
             "x": x_value,
@@ -137,7 +147,7 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
                 else:
                     all_series[series_title] = [index]
 
-    return {"data_points": data_points, "series": all_series, "is_x_time": is_x_time,
+    return {"data_points": data_points, "series": all_series, "is_x_time": not (is_x_time == XAxisType.NOT_TIME),
             "invalid_data_points": invalid_data_points}
 
 
@@ -145,6 +155,7 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
 
 @app.route('/line_graph')
 def get_all_events_route():
+    app.logger.info("line graph notion graphs request")
     notion_client = None
     notion_cookie = request.cookies.get("token_v2")
     if notion_cookie is not None:
