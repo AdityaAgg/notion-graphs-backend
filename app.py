@@ -7,6 +7,7 @@ from flask_cors import CORS
 import datetime
 from notion.collection import NotionDate
 from notion_graphs_types import XAxisType
+import rollup_formula_tools.utils as rollup_formula_utils
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=["https://notion-graphs.com", "http://localhost:3000", "http://localhost:5000"],
@@ -23,63 +24,82 @@ def set_default(obj):
     raise TypeError
 
 
-def schema_validation(notion_data_point, x_property, y_property, size_property, title_property, series_property):
-    set_size = set_title = set_series = True
+def schema_validation(notion_data_points, x_property, y_property, size_property, title_property, series_property):
+    set_size = set_title = set_series = False
     is_x_time = XAxisType.NOT_TIME
-    properties = set([prop["name"] for prop in notion_data_point.schema])
-    try:
-        if isinstance(notion_data_point.get_property(x_property), datetime.date):
-            is_x_time = XAxisType.TIMESTAMP
-        elif isinstance(notion_data_point.get_property(x_property), NotionDate):
-            start_time = notion_data_point.get_property(x_property).start
-            if isinstance(start_time, datetime.datetime):
-                is_x_time = XAxisType.DATETIME_DATE
-            elif isinstance(start_time, datetime.date):
-                is_x_time = XAxisType.DATE
-            elif not start_time:
-                raise InvalidUsage("x property is a Date type that Notion Graphs does not support")
+    rollup_or_formula_x = rollup_or_formula_y = rollup_or_formula_size = None
+    if len(notion_data_points) > 0:
+        set_size = set_title = set_series = True
+        notion_data_point = notion_data_points[0]
+        properties = set([prop["name"] for prop in notion_data_point.schema])
+        try:
+            if isinstance(notion_data_point.get_property(x_property), datetime.date):
+                is_x_time = XAxisType.TIMESTAMP
+            elif isinstance(notion_data_point.get_property(x_property), NotionDate):
+                start_time = notion_data_point.get_property(x_property).start
+                if isinstance(start_time, datetime.datetime):
+                    is_x_time = XAxisType.DATETIME_DATE
+                elif isinstance(start_time, datetime.date):
+                    is_x_time = XAxisType.DATE
+                elif not start_time:
+                    raise InvalidUsage("x property is a Date type that Notion Graphs does not support")
 
-        if x_property not in properties:
-            raise InvalidUsage(
-                "x property uses rollup or formula which not supported")
-    except (AttributeError, TypeError):
-        raise InvalidUsage("x property does not exist in notion table")
+            if x_property not in properties:
+                rollup_or_formula_x = notion_data_point.collection.get_schema_property(x_property)
+                if type(rollup_formula_utils.calculate_rollup_or_formula(rollup_or_formula_x, notion_data_point))\
+                        == list:
+                    raise InvalidUsage("x property must be numeric")
 
-    try:
-        notion_data_point.get_property(y_property)
-        is_y_time = (isinstance(
-            notion_data_point.get_property(y_property), datetime.date) or
-            isinstance(notion_data_point.get_property(y_property), NotionDate))
-        if is_y_time:
-            raise InvalidUsage(
-                "y property uses time which is not supported. Time is supported only for x axis.")
-        if y_property not in properties:
-            raise InvalidUsage(
-                "y property uses rollup or formula which not supported")
-    except (AttributeError, TypeError):
-        raise InvalidUsage("y property does not exist in notion table")
+        except (AttributeError, TypeError):
+            raise InvalidUsage("x property does not exist in notion table")
 
-    if size_property not in properties:
-        set_size = False
+        try:
+            notion_data_point.get_property(y_property)
+            is_y_time = (isinstance(
+                notion_data_point.get_property(y_property), datetime.date) or
+                isinstance(notion_data_point.get_property(y_property), NotionDate))
+            if is_y_time:
+                raise InvalidUsage(
+                    "y property uses time which is not supported. Time is supported only for x axis.")
+            if y_property not in properties:
+                rollup_or_formula_y = notion_data_point.collection.get_schema_property(y_property)
+                if type(rollup_formula_utils.calculate_rollup_or_formula(rollup_or_formula_y, notion_data_point)) \
+                        == list:
+                    raise InvalidUsage("y property must be numeric")
 
-    if title_property not in properties:
-        set_title = False
+        except (AttributeError, TypeError):
+            raise InvalidUsage("y property does not exist in notion table")
 
-    if series_property not in properties:
-        set_series = False
+        if size_property not in properties:
+            try:
+                notion_data_point.get_property(size_property)
+                rollup_or_formula_size = notion_data_point.collection.get_schema_property(size_property)
+                set_size = type(rollup_formula_utils.calculate_rollup_or_formula(
+                    rollup_or_formula_size, notion_data_point)) == list
+            except(AttributeError, TypeError):
+                set_size = False
 
-    return set_size, set_title, set_series, is_x_time
+        if title_property not in properties:
+            set_title = False
+
+        if series_property not in properties:
+            set_series = False
+
+    return {"set_size": set_size,
+            "set_title": set_title,
+            "set_series": set_series,
+            "is_x_time": is_x_time,
+            "rollup_or_formula_x": rollup_or_formula_x,
+            "rollup_or_formula_y": rollup_or_formula_y,
+            "rollup_or_formula_size": rollup_or_formula_size
+            }
 
 
 def get_data_points(cv, x_property, y_property, size_property, title_property, series_property):
     notion_data_points = cv.collection.get_rows()
 
     # schema validation
-    set_size = set_title = set_series = False
-    is_x_time = XAxisType.NOT_TIME
-    if len(notion_data_points) > 0:
-        set_size, set_title, set_series, is_x_time = schema_validation(
-            notion_data_points[0], x_property, y_property, size_property, title_property, series_property)
+    schema_information = schema_validation(notion_data_points, x_property, y_property, size_property, title_property, series_property)
 
     data_points = []
     invalid_data_points = []
@@ -88,9 +108,22 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
     # empty defaults
     size = 1
     series = []
+
+    set_size = schema_information.get("set_size")
+    set_title = schema_information.get("set_title")
+    set_series = schema_information.get("set_series")
+    is_x_time = schema_information.get("is_x_time")
+    rollup_or_formula_x = schema_information.get("rollup_or_formula_x")
+    rollup_or_formula_y = schema_information.get("rollup_or_formula_y")
+    rollup_or_formula_size = schema_information.get("rollup_or_formula_size")
+
     for notion_data_point in notion_data_points:
-        size = notion_data_point.get_property(
-            size_property) if set_size else size
+        if set_size:
+            if rollup_or_formula_size:
+                size = rollup_formula_utils.calculate_rollup_or_formula(rollup_or_formula_size, notion_data_point)
+            else:
+                size = notion_data_point.get_property(size_property)
+
         title = notion_data_point.get_property(
             title_property) if set_title else notion_data_point.title
         if set_series:
@@ -99,7 +132,8 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
             for notion_domain in notion_series:
                 series.append(notion_domain.title)
 
-        x_value = notion_data_point.get_property(x_property)
+        x_value = rollup_formula_utils.calculate_rollup_or_formula(rollup_or_formula_x, notion_data_point) \
+            if rollup_or_formula_x else notion_data_point.get_property(x_property)
 
         # time handling
         if is_x_time == XAxisType.TIMESTAMP:
@@ -123,15 +157,18 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
             else:
                 x_value = None
 
+        y_value = rollup_formula_utils.calculate_rollup_or_formula(rollup_or_formula_y, notion_data_point) \
+            if rollup_or_formula_y else notion_data_point.get_property(y_property)
+
         data_point = {
             "x": x_value,
-            "y": notion_data_point.get_property(y_property),
+            "y": y_value,
             "size": size,
             "title": title,
             "series": series
         }
-        if not x_value or not notion_data_point.get_property(y_property) or (
-                set_size and not notion_data_point.get_property(size_property)):
+        if not x_value or not y_value or (
+                set_size and not size):
             invalid_data_points.append(data_point)
         else:
             data_points.append(data_point)
