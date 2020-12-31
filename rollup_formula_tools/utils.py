@@ -73,6 +73,9 @@ def calculate_formula(formula, item):
 
     # process args
     if formula.get("args"):
+        # if function_name == "<function name here>":
+            # print([fetch_data_for_arg(arg, item) for arg in formula.get("args")])
+            # print(function_to_call([fetch_data_for_arg(arg, item) for arg in formula.get("args")]))
         return function_to_call([fetch_data_for_arg(arg, item) for arg in formula.get("args")])
 
     params = identifier_to_function_params_map.get(function_type)

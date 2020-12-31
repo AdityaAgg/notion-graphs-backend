@@ -2,6 +2,7 @@ import math
 from re import search, sub
 from datetime import datetime, timezone
 from notion.collection import NotionDate
+from notion.user import User
 
 
 def pre_check_for_nulls(function_to_call, args):
@@ -37,6 +38,8 @@ def pre_check_for_nulls_only_arg0(function_to_call, args):
 
 def pre_check_convert_null_to_empty_string(function_to_call, args):
     for i in range(len(args)):
+        if type(args) == list and len(args[i]) > 0 and type(args[i][0]) == User:
+            args[i] = [notion_user.full_name for notion_user in args[i]]
         if args[i] is None:
             args[i] = ""
         elif type(args[i]) != str:
