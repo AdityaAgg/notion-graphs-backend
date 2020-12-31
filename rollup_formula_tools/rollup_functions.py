@@ -1,21 +1,21 @@
 from statistics import median
 
 
-def pre_filter_remove_nulls_aggregation(function, arr, is_numeric_aggregation=False):
-    filtered_list = list(filter(lambda element: element != None, arr))
+def pre_filter_remove_nulls_aggregation(function_to_call, arr, is_numeric_aggregation=False):
+    filtered_list = list(filter(lambda element: element is not None, arr))
     if len(filtered_list) == 0 and is_numeric_aggregation:
         return None
-    return function(filtered_list)
+    return function_to_call(filtered_list)
 
 
-def pre_filter_only_nulls_aggregation(function, arr):
-    return function(list(filter(lambda element: element == None, arr)))
+def pre_filter_only_nulls_aggregation(function_to_call, arr):
+    return function_to_call(list(filter(lambda element: element is None, arr)))
 
 
-def invalid_if_prefiltered_empty(function, arr):
+def invalid_if_prefiltered_empty(function_to_call, arr):
     if len(arr) == 0:
         return None
-    return function(arr)
+    return function_to_call(arr)
 
 
 def flatten(arr):
