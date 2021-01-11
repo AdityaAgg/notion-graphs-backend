@@ -8,6 +8,8 @@ import datetime
 from notion.collection import NotionDate
 from notion_graphs_types import XAxisType
 import rollup_formula_tools.utils as rollup_formula_utils
+import resource
+import contextlib
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=["https://notion-graphs.com", "http://localhost:3000", "http://localhost:5000"],
@@ -22,6 +24,18 @@ def set_default(obj):
     if isinstance(obj, set):
         return list(obj)
     raise TypeError
+
+
+@contextlib.contextmanager
+def limit(limit_qty, resource_type=resource.RLIMIT_AS):
+    soft_limit, hard_limit = resource.getrlimit(resource_type)
+    resource.setrlimit(resource_type, (limit_qty, hard_limit)) # set soft limit
+    try:
+        yield
+    except MemoryError:
+        raise InvalidUsage("you a graph on a collection that is too large for us to process")
+    finally:
+        resource.setrlimit(resource_type, (soft_limit, hard_limit)) # restore
 
 
 def schema_validation(notion_data_points, x_property, y_property, size_property, title_property, series_property):
@@ -189,7 +203,6 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
 
 
 # routes
-
 @app.route('/line_graph')
 def get_all_events_route():
     app.logger.info("line graph notion graphs request")
@@ -228,10 +241,10 @@ def get_all_events_route():
     except:
         raise InvalidUsage(
             "Notion Graphs seems to have trouble finding your notion page. Are you sure it is the right one?")
-
-    return json.dumps(get_data_points(cv, x_property, y_property, size_property,
-                                      title_property, series_property),
-                      default=set_default)
+    with limit(5 * 10**7):  # setting a memory limit on fetching notion data to prevent brown out
+        return json.dumps(get_data_points(cv, x_property, y_property, size_property,
+                                          title_property, series_property),
+                          default=set_default)
 
 
 @app.errorhandler(InvalidUsage)
