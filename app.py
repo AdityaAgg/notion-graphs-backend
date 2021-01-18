@@ -192,7 +192,7 @@ def derive_data_point(schema_information, notion_data_point):
 
 def get_data_points(cv, x_property, y_property, size_property, title_property, series_property):
 
-    notion_data_points = cv.collection.get_rows()
+    notion_data_points = cv.default_query().execute()
     # schema validation
     schema_information = schema_validation(notion_data_points, x_property, y_property, size_property, title_property, series_property)
 
