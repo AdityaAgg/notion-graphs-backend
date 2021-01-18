@@ -10,6 +10,9 @@ from notion_graphs_types import XAxisType
 import rollup_formula_tools.utils as rollup_formula_utils
 import resource
 import contextlib
+from concurrent.futures import ThreadPoolExecutor
+import time
+
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True, origins=["https://notion-graphs.com", "http://localhost:3000", "http://localhost:5000"],
@@ -105,24 +108,16 @@ def schema_validation(notion_data_points, x_property, y_property, size_property,
             "is_x_time": is_x_time,
             "rollup_or_formula_x": rollup_or_formula_x,
             "rollup_or_formula_y": rollup_or_formula_y,
-            "rollup_or_formula_size": rollup_or_formula_size
+            "rollup_or_formula_size": rollup_or_formula_size,
+            "x_property": x_property,
+            "y_property": y_property,
+            "size_property": size_property,
+            "title_property": title_property,
+            "series_property": series_property
             }
 
 
-def get_data_points(cv, x_property, y_property, size_property, title_property, series_property):
-    notion_data_points = cv.collection.get_rows()
-
-    # schema validation
-    schema_information = schema_validation(notion_data_points, x_property, y_property, size_property, title_property, series_property)
-
-    data_points = []
-    invalid_data_points = []
-    all_series = {}
-
-    # empty defaults
-    size = 1
-    series = []
-
+def derive_data_point(schema_information, notion_data_point):
     set_size = schema_information.get("set_size")
     set_title = schema_information.get("set_title")
     set_series = schema_information.get("set_series")
@@ -130,76 +125,109 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
     rollup_or_formula_x = schema_information.get("rollup_or_formula_x")
     rollup_or_formula_y = schema_information.get("rollup_or_formula_y")
     rollup_or_formula_size = schema_information.get("rollup_or_formula_size")
+    x_property = schema_information.get("x_property")
+    y_property = schema_information.get("y_property")
+    size_property = schema_information.get("size_property")
+    title_property = schema_information.get("title_property")
+    series_property = schema_information.get("series_property")
 
-    for notion_data_point in notion_data_points:
-        if set_size:
-            if rollup_or_formula_size:
-                size = rollup_formula_utils.calculate_rollup_or_formula(rollup_or_formula_size, notion_data_point)
-            else:
-                size = notion_data_point.get_property(size_property)
+    #empty defaults
+    size = 1
+    series = []
 
-        title = notion_data_point.get_property(
-            title_property) if set_title else notion_data_point.title
-        if set_series:
-            series = []
-            notion_series = notion_data_point.get_property(series_property)
-            for notion_domain in notion_series:
-                series.append(notion_domain.title)
-
-        x_value = rollup_formula_utils.calculate_rollup_or_formula(rollup_or_formula_x, notion_data_point) \
-            if rollup_or_formula_x else notion_data_point.get_property(x_property)
-
-        # time handling
-        if is_x_time == XAxisType.TIMESTAMP:
-            if x_value:
-                x_value = x_value.timestamp() * 1000
-        elif is_x_time == XAxisType.DATETIME_DATE:
-            if x_value and x_value.start:
-                if x_value.timezone:  # there is a bug in timezone in notion-py parsing thus this has no effect
-                    x_value.start.replace(tzinfo=x_value.timezone).astimezone(tz=datetime.timezone.utc)
-                x_value = x_value.start.timestamp() * 1000
-            else:
-                x_value = None
-        elif is_x_time == XAxisType.DATE:
-            if x_value and x_value.start:
-                timezone = x_value.timezone
-                x_value = datetime.datetime.combine(x_value.start,
-                                                    datetime.datetime.min.time())
-                if timezone:  # there is a bug in timezone in notion-py parsing thus this has no effect
-                    x_value.replace(tzinfo=timezone).astimezone(tz=datetime.timezone.utc)
-                x_value = x_value.timestamp() * 1000
-            else:
-                x_value = None
-
-        y_value = rollup_formula_utils.calculate_rollup_or_formula(rollup_or_formula_y, notion_data_point) \
-            if rollup_or_formula_y else notion_data_point.get_property(y_property)
-
-        data_point = {
-            "x": x_value,
-            "y": y_value,
-            "size": size,
-            "title": title,
-            "series": series
-        }
-        if not x_value or not y_value or (
-                set_size and not size):
-            invalid_data_points.append(data_point)
+    if set_size:
+        if rollup_or_formula_size:
+            size = rollup_formula_utils.calculate_rollup_or_formula(rollup_or_formula_size, notion_data_point)
         else:
-            data_points.append(data_point)
+            size = notion_data_point.get_property(size_property)
 
-    data_points.sort(key=lambda data_pt: data_pt["x"])
+    title = notion_data_point.get_property(
+        title_property) if set_title else notion_data_point.title
+    if set_series:
+        series = []
+        notion_series = notion_data_point.get_property(series_property)
+        for notion_domain in notion_series:
+            series.append(notion_domain.title)
 
+    x_value = rollup_formula_utils.calculate_rollup_or_formula(rollup_or_formula_x, notion_data_point) \
+        if rollup_or_formula_x else notion_data_point.get_property(x_property)
+
+    # time handling
+    if is_x_time == XAxisType.TIMESTAMP:
+        if x_value:
+            x_value = x_value.timestamp() * 1000
+    elif is_x_time == XAxisType.DATETIME_DATE:
+        if x_value and x_value.start:
+            if x_value.timezone:  # there is a bug in timezone in notion-py parsing thus this has no effect
+                x_value.start.replace(tzinfo=x_value.timezone).astimezone(tz=datetime.timezone.utc)
+            x_value = x_value.start.timestamp() * 1000
+        else:
+            x_value = None
+    elif is_x_time == XAxisType.DATE:
+        if x_value and x_value.start:
+            timezone = x_value.timezone
+            x_value = datetime.datetime.combine(x_value.start,
+                                                datetime.datetime.min.time())
+            if timezone:  # there is a bug in timezone in notion-py parsing thus this has no effect
+                x_value.replace(tzinfo=timezone).astimezone(tz=datetime.timezone.utc)
+            x_value = x_value.timestamp() * 1000
+        else:
+            x_value = None
+
+    y_value = rollup_formula_utils.calculate_rollup_or_formula(rollup_or_formula_y, notion_data_point) \
+        if rollup_or_formula_y else notion_data_point.get_property(y_property)
+
+    data_point = {
+        "x": x_value,
+        "y": y_value,
+        "size": size,
+        "title": title,
+        "series": series
+    }
+    if not x_value or not y_value or (
+            set_size and not size):
+        return None, data_point
+    else:
+        return data_point, None
+
+
+def get_data_points(cv, x_property, y_property, size_property, title_property, series_property):
+
+    notion_data_points = cv.collection.get_rows()
+    start_time = time.time()
+    # schema validation
+    schema_information = schema_validation(notion_data_points, x_property, y_property, size_property, title_property, series_property)
+
+    # concurrently process data points
+    thread_pool = ThreadPoolExecutor(max_workers=4)
+    all_data_points = thread_pool.map(lambda data_pt: derive_data_point(schema_information, data_pt),
+                                      notion_data_points)
+    thread_pool.shutdown()
+    data_points, invalid_data_points = zip(*all_data_points)
+    print(data_points)
+    print(invalid_data_points)
+    data_points = [data_pt_val for data_pt_val in data_points if data_pt_val is not None]
+    invalid_data_points = [data_pt_inv for data_pt_inv in invalid_data_points if data_pt_inv is not None]
+    data_points = sorted(data_points, key=lambda data_pt: data_pt["x"])
     for index, data_point in enumerate(data_points):
         data_point["index"] = index
-        if set_series:
+
+    all_series = {}
+    if schema_information.get("set_series"):
+        for index, data_point in enumerate(data_points):
             for series_title in data_point["series"]:
                 if series_title in all_series:
                     all_series[series_title].append(index)
                 else:
                     all_series[series_title] = [index]
-
-    return {"data_points": data_points, "series": all_series, "is_x_time": not (is_x_time == XAxisType.NOT_TIME),
-            "invalid_data_points": invalid_data_points}
+    end_time=time.time()
+    return {
+        "data_points": data_points,
+        "series": all_series,
+        "is_x_time": not (schema_information.get("is_x_time") == XAxisType.NOT_TIME),
+        "invalid_data_points": invalid_data_points,
+        "time_taken": end_time - start_time
+    }
 
 
 # routes
@@ -241,7 +269,7 @@ def get_all_events_route():
     except:
         raise InvalidUsage(
             "Notion Graphs seems to have trouble finding your notion page. Are you sure it is the right one?")
-    with limit(5 * 10**7):  # setting a memory limit on fetching notion data to prevent brown out
+    with limit(3.25 * 10**7):  # setting a memory limit on fetching notion data to prevent brown out (512 MB limit)
         return json.dumps(get_data_points(cv, x_property, y_property, size_property,
                                           title_property, series_property),
                           default=set_default)
