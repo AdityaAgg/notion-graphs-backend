@@ -204,8 +204,6 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
                                       notion_data_points)
     thread_pool.shutdown()
     data_points, invalid_data_points = zip(*all_data_points)
-    print(data_points)
-    print(invalid_data_points)
     data_points = [data_pt_val for data_pt_val in data_points if data_pt_val is not None]
     invalid_data_points = [data_pt_inv for data_pt_inv in invalid_data_points if data_pt_inv is not None]
     data_points = sorted(data_points, key=lambda data_pt: data_pt["x"])
