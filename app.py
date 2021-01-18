@@ -11,7 +11,6 @@ import rollup_formula_tools.utils as rollup_formula_utils
 import resource
 import contextlib
 from concurrent.futures import ThreadPoolExecutor
-import time
 
 
 app = Flask(__name__)
@@ -194,7 +193,6 @@ def derive_data_point(schema_information, notion_data_point):
 def get_data_points(cv, x_property, y_property, size_property, title_property, series_property):
 
     notion_data_points = cv.collection.get_rows()
-    start_time = time.time()
     # schema validation
     schema_information = schema_validation(notion_data_points, x_property, y_property, size_property, title_property, series_property)
 
@@ -218,13 +216,11 @@ def get_data_points(cv, x_property, y_property, size_property, title_property, s
                     all_series[series_title].append(index)
                 else:
                     all_series[series_title] = [index]
-    end_time=time.time()
     return {
         "data_points": data_points,
         "series": all_series,
         "is_x_time": not (schema_information.get("is_x_time") == XAxisType.NOT_TIME),
-        "invalid_data_points": invalid_data_points,
-        "time_taken": end_time - start_time
+        "invalid_data_points": invalid_data_points
     }
 
 
